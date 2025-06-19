@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,12 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// Custom ice breaker game colors
+				'ice-blue': 'rgb(56, 194, 213)',
+				'ice-purple': 'rgb(85, 64, 126)', 
+				'ice-coral': 'rgb(255, 90, 96)',
+				'ice-dark': 'rgb(0, 0, 0)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
