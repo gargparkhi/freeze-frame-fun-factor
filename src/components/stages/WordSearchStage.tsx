@@ -1,161 +1,214 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 interface WordSearchStageProps {
   onComplete: () => void;
 }
 
 const WordSearchStage = ({ onComplete }: WordSearchStageProps) => {
-  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [foundWords, setFoundWords] = useState<Set<string>>(new Set());
-  
-  const words = ['TEAM', 'WORK', 'PLAY', 'FUN', 'GOAL'];
-  const gridSize = 10;
-  
-  // Generate a simple grid with words placed horizontally and vertically
-  const generateGrid = () => {
-    const grid = Array(gridSize).fill(null).map(() => Array(gridSize).fill(''));
-    
-    // Place words
-    grid[1][1] = 'T'; grid[1][2] = 'E'; grid[1][3] = 'A'; grid[1][4] = 'M';
-    grid[2][1] = 'W'; grid[3][1] = 'O'; grid[4][1] = 'R'; grid[5][1] = 'K';
-    grid[7][2] = 'P'; grid[7][3] = 'L'; grid[7][4] = 'A'; grid[7][5] = 'Y';
-    grid[3][6] = 'F'; grid[4][6] = 'U'; grid[5][6] = 'N';
-    grid[8][7] = 'G'; grid[8][8] = 'O'; grid[8][9] = 'A'; grid[9][9] = 'L';
-    
-    // Fill empty cells with random letters
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    for (let i = 0; i < gridSize; i++) {
-      for (let j = 0; j < gridSize; j++) {
-        if (grid[i][j] === '') {
-          grid[i][j] = letters[Math.floor(Math.random() * letters.length)];
-        }
-      }
-    }
-    
-    return grid;
-  };
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectedCells, setSelectedCells] = useState<number[]>([]);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
-  const [grid] = useState(generateGrid());
+  const gridData = [
+    ['C','O','L','L','A','B','O','R','A','T','E','B','P','L','I'],
+    ['Z','J','K','M','N','P','Q','A','F','R','V','A','F','U','N'],
+    ['W','E','I','M','P','A','C','T','Y','G','H','N','L','R','N'],
+    ['X','Y','Z','L','A','U','N','C','H','N','J','G','Y','E','O'],
+    ['S','T','R','A','T','E','G','Y','K','L','M','A','E','S','V'],
+    ['Q','V','W','X','C','A','D','R','E','A','B','L','R','T','A'],
+    ['J','K','G','R','O','W','T','H','P','Q','R','O','N','U','T'],
+    ['S','F','T','U','V','W','X','Y','Z','G','H','R','C','V','E'],
+    ['V','I','S','I','O','N','A','B','C','D','E','E','H','W','X'],
+    ['K','L','M','N','O','P','Q','R','S','T','U','L','I','X','Y'],
+    ['A','G','I','L','E','V','W','X','Y','Z','A','E','K','L','Z'],
+    ['M','N','I','J','I','K','L','M','N','O','P','A','M','N','A'],
+    ['O','P','Q','R','I','S','T','U','V','W','X','R','N','O','B'],
+    ['S','T','U','V','M','W','X','Y','Z','A','B','N','O','P','C'],
+    ['W','X','Y','Z','B','A','B','C','D','E','F','S','P','Q','D']
+  ];
 
-  const handleCellClick = (row: number, col: number) => {
-    const cellKey = `${row}-${col}`;
-    const newSelected = new Set(selectedCells);
-    
-    if (newSelected.has(cellKey)) {
-      newSelected.delete(cellKey);
-    } else {
-      newSelected.add(cellKey);
-    }
-    
-    setSelectedCells(newSelected);
-  };
+  const wordsToFind = [
+    'COLLABORATE', 'IMPACT', 'STRATEGY', 'GROWTH', 'VISION', 'AGILE',
+    'INNOVATE', 'FLYER', 'LAUNCH', 'LEARN'
+  ];
 
-  const checkForWords = () => {
-    // Simple word checking logic - in a real implementation, this would be more sophisticated
-    const newFoundWords = new Set(foundWords);
-    
-    // Check if TEAM is selected (row 1, cols 1-4)
-    if (selectedCells.has('1-1') && selectedCells.has('1-2') && 
-        selectedCells.has('1-3') && selectedCells.has('1-4')) {
-      newFoundWords.add('TEAM');
-    }
-    
-    setFoundWords(newFoundWords);
-    
-    if (newFoundWords.size === words.length) {
-      setTimeout(onComplete, 1000);
-    }
-  };
+  const foundWordPositions = new Map();
 
   useEffect(() => {
-    checkForWords();
-  }, [selectedCells]);
+    if (foundWords.size === wordsToFind.length) {
+      toast({
+        title: "🎉 All words found!",
+        description: "Advancing to the next stage...",
+      });
+      setTimeout(() => {
+        onComplete();
+      }, 2000);
+    }
+  }, [foundWords, onComplete, toast]);
+
+  const getCellIndex = (row: number, col: number) => row * 15 + col;
+
+  const handleMouseDown = (row: number, col: number) => {
+    setIsSelecting(true);
+    setSelectedCells([getCellIndex(row, col)]);
+  };
+
+  const handleMouseEnter = (row: number, col: number) => {
+    if (!isSelecting) return;
+    
+    const cellIndex = getCellIndex(row, col);
+    if (selectedCells.includes(cellIndex)) return;
+
+    setSelectedCells(prev => [...prev, cellIndex]);
+  };
+
+  const handleMouseUp = () => {
+    if (!isSelecting || selectedCells.length === 0) {
+      setIsSelecting(false);
+      setSelectedCells([]);
+      return;
+    }
+
+    checkWord();
+    setIsSelecting(false);
+    setSelectedCells([]);
+  };
+
+  const checkWord = () => {
+    const selectedChars = selectedCells.map(index => {
+      const row = Math.floor(index / 15);
+      const col = index % 15;
+      return gridData[row][col];
+    });
+
+    const word = selectedChars.join('');
+    const reverseWord = selectedChars.reverse().join('');
+
+    const foundWord = wordsToFind.find(w => w === word || w === reverseWord);
+    
+    if (foundWord && !foundWords.has(foundWord)) {
+      setFoundWords(prev => new Set([...prev, foundWord]));
+      foundWordPositions.set(foundWord, [...selectedCells]);
+      toast({
+        title: `Found: "${foundWord}"! 🎯`,
+        description: `${foundWords.size + 1} of ${wordsToFind.length} words found`,
+      });
+    } else if (foundWord && foundWords.has(foundWord)) {
+      toast({
+        title: "Already found!",
+        description: "This word has been found already.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isCellSelected = (row: number, col: number) => {
+    return selectedCells.includes(getCellIndex(row, col));
+  };
+
+  const isCellFound = (row: number, col: number) => {
+    const cellIndex = getCellIndex(row, col);
+    return Array.from(foundWordPositions.values()).some(positions => 
+      positions.includes(cellIndex)
+    );
+  };
 
   return (
-    <div className="h-full flex items-center justify-center p-4">
+    <div className="h-full flex flex-col items-center justify-center p-4">
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-4xl"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-6xl"
       >
-        <Card className="bg-white/90 backdrop-blur-sm shadow-2xl border-ice-blue/20">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold text-ice-purple mb-4">
-              🔍 Word Hunt
-            </CardTitle>
-            <p className="text-ice-dark/70">Find all the hidden words in the grid!</p>
-          </CardHeader>
-          
-          <CardContent>
-            <div className="flex flex-col lg:flex-row gap-8 items-start">
-              {/* Word Grid */}
-              <div className="flex-1">
-                <div className="grid grid-cols-10 gap-1 max-w-md mx-auto">
-                  {grid.map((row, rowIndex) => 
-                    row.map((cell, colIndex) => (
-                      <motion.button
-                        key={`${rowIndex}-${colIndex}`}
-                        className={`w-8 h-8 text-sm font-bold border-2 rounded transition-all duration-200 ${
-                          selectedCells.has(`${rowIndex}-${colIndex}`)
-                            ? 'bg-ice-blue text-white border-ice-blue'
-                            : 'bg-white text-ice-dark border-gray-300 hover:border-ice-blue hover:bg-ice-blue/10'
-                        }`}
-                        onClick={() => handleCellClick(rowIndex, colIndex)}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        {cell}
-                      </motion.button>
-                    ))
-                  )}
-                </div>
-              </div>
-              
-              {/* Words List */}
-              <div className="lg:w-64">
-                <h3 className="text-lg font-semibold text-ice-purple mb-4">Find these words:</h3>
-                <div className="space-y-2">
-                  {words.map((word) => (
-                    <motion.div
-                      key={word}
-                      className={`p-3 rounded-lg border-2 transition-all duration-300 ${
-                        foundWords.has(word)
-                          ? 'bg-green-100 border-green-500 text-green-800'
-                          : 'bg-gray-50 border-gray-200 text-ice-dark'
-                      }`}
-                      initial={{ x: 20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: words.indexOf(word) * 0.1 }}
-                    >
-                      <span className="font-medium">
-                        {foundWords.has(word) ? '✅' : '🔍'} {word}
-                      </span>
-                    </motion.div>
-                  ))}
-                </div>
-                
-                <div className="mt-6 text-center">
-                  <p className="text-sm text-ice-dark/70 mb-2">
-                    Found: {foundWords.size} / {words.length}
-                  </p>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <motion.div
-                      className="bg-ice-blue h-2 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(foundWords.size / words.length) * 100}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
+        <motion.h2
+          className="text-3xl font-bold text-ice-purple mb-6 text-center"
+          initial={{ scale: 0.9 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          Word Search
+        </motion.h2>
+        
+        <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white/90 backdrop-blur-sm rounded-lg p-6 border-2 border-ice-blue/30 shadow-lg"
+          >
+            <div
+              ref={gridRef}
+              className="grid grid-cols-15 gap-1 select-none"
+              onMouseUp={handleMouseUp}
+              onMouseLeave={() => {
+                setIsSelecting(false);
+                setSelectedCells([]);
+              }}
+            >
+              {gridData.map((row, rowIndex) =>
+                row.map((char, colIndex) => (
+                  <div
+                    key={`${rowIndex}-${colIndex}`}
+                    className={`
+                      w-8 h-8 flex items-center justify-center text-sm font-bold border border-ice-blue/20 cursor-pointer
+                      transition-all duration-200 rounded-sm
+                      ${isCellSelected(rowIndex, colIndex) 
+                        ? 'bg-ice-blue text-white border-ice-blue' 
+                        : isCellFound(rowIndex, colIndex)
+                        ? 'bg-green-500 text-white border-green-500'
+                        : 'bg-white hover:bg-ice-blue/10'
+                      }
+                    `}
+                    onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
+                    onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
+                  >
+                    {char}
                   </div>
-                </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+            className="bg-white/90 backdrop-blur-sm rounded-lg p-6 border-2 border-ice-blue/30 shadow-lg min-w-[200px]"
+          >
+            <h3 className="text-xl font-semibold text-ice-purple mb-4 text-center">
+              Words to Find
+            </h3>
+            <div className="space-y-2">
+              {wordsToFind.map((word, index) => (
+                <motion.div
+                  key={word}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.8 + index * 0.1 }}
+                  className={`
+                    text-sm font-medium p-2 rounded transition-all duration-300
+                    ${foundWords.has(word) 
+                      ? 'text-green-600 bg-green-50 line-through' 
+                      : 'text-ice-dark hover:bg-ice-blue/10'
+                    }
+                  `}
+                >
+                  {word}
+                </motion.div>
+              ))}
+            </div>
+            <div className="mt-4 pt-4 border-t border-ice-blue/20">
+              <div className="text-center text-sm text-ice-dark">
+                <span className="font-semibold text-ice-purple">{foundWords.size}</span> of {wordsToFind.length} found
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </motion.div>
+        </div>
       </motion.div>
     </div>
   );

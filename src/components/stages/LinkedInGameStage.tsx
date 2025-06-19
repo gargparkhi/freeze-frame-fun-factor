@@ -1,188 +1,192 @@
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 interface LinkedInGameStageProps {
   onComplete: () => void;
 }
 
 const LinkedInGameStage = ({ onComplete }: LinkedInGameStageProps) => {
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [attempts, setAttempts] = useState(0);
-  const [solvedGroups, setSolvedGroups] = useState<string[]>([]);
-  
-  // Based on your uploaded image
-  const items = [
-    'COLLEAGUE', 'ASSOCIATE', 'FELLOW', 'PARTNER', 'PEER',
-    'HALL', 'LIBRARY', 'LOUNGE', 'STUDY',
-    'BUNNY', 'EGG', 'JELLY BEAN', 'PEEP',
-    'ANIMAL', 'BIRTHMARK', 'SPY', 'UNIT'
-  ];
+  const [selectedWords, setSelectedWords] = useState<string[]>([]);
+  const [foundGroups, setFoundGroups] = useState<Array<{category: string, words: string[]}>>([]);
+  const [availableWords, setAvailableWords] = useState<string[]>([]);
+  const [wrongSelection, setWrongSelection] = useState<string[]>([]);
+  const { toast } = useToast();
 
-  const groups = {
-    'COLLEAGUE': ['COLLEAGUE', 'ASSOCIATE', 'FELLOW', 'PARTNER', 'PEER'],
-    'ROOMS IN THE GAME CLUE': ['HALL', 'LIBRARY', 'LOUNGE', 'STUDY'],
-    'SEEN DURING EASTER': ['BUNNY', 'EGG', 'JELLY BEAN', 'PEEP'],
-    'WHAT A MOLE CAN BE': ['ANIMAL', 'BIRTHMARK', 'SPY', 'UNIT']
+  const categories = {
+    "Roles you'll transition to": ["Sales & Customer Interface", "Procurement & Supply Chain", "Analytics & Strategic Planning", "Manufacturing Excellence & Project Management"],
+    "FLYER Elements": ["Development", "IIM Bangalore", "Growth Opportunities", "Leadership Access"],
+    "Places to explore at IIM B": ["Mustard Cafe", "Library", "Jigani Campus", "Forest trail"],
+    "RIL industry bandwidth": ["Only Vimal", "Spice Trading", "Refinery", "Telecom"]
   };
 
-  const colors = {
-    'COLLEAGUE': 'bg-green-400',
-    'ROOMS IN THE GAME CLUE': 'bg-yellow-400',
-    'SEEN DURING EASTER': 'bg-purple-400',
-    'WHAT A MOLE CAN BE': 'bg-pink-400'
-  };
+  useEffect(() => {
+    const allWords = Object.values(categories).flat();
+    setAvailableWords(allWords.sort(() => Math.random() - 0.5));
+  }, []);
 
-  const handleItemClick = (item: string) => {
-    if (solvedGroups.some(group => groups[group as keyof typeof groups].includes(item))) {
-      return; // Item already solved
+  useEffect(() => {
+    if (foundGroups.length === Object.keys(categories).length) {
+      toast({
+        title: "🎉 All connections found!",
+        description: "Advancing to the final stage...",
+      });
+      setTimeout(() => {
+        onComplete();
+      }, 2500);
     }
-    
-    let newSelected = [...selectedItems];
-    
-    if (newSelected.includes(item)) {
-      newSelected = newSelected.filter(i => i !== item);
-    } else if (newSelected.length < 4) {
-      newSelected.push(item);
-    }
-    
-    setSelectedItems(newSelected);
-  };
+  }, [foundGroups, onComplete, toast]);
 
-  const handleSubmit = () => {
-    if (selectedItems.length !== 4) return;
-    
-    // Check if selection matches any group
-    const matchedGroup = Object.keys(groups).find(groupName => {
-      const groupItems = groups[groupName as keyof typeof groups];
-      return selectedItems.every(item => groupItems.includes(item)) && 
-             selectedItems.length === groupItems.length;
-    });
-    
-    if (matchedGroup) {
-      setSolvedGroups([...solvedGroups, matchedGroup]);
-      setSelectedItems([]);
-      
-      if (solvedGroups.length + 1 === Object.keys(groups).length) {
-        setTimeout(onComplete, 1500);
-      }
+  const handleWordClick = (word: string) => {
+    if (selectedWords.includes(word)) {
+      setSelectedWords(selectedWords.filter(w => w !== word));
+    } else if (selectedWords.length < 4) {
+      setSelectedWords([...selectedWords, word]);
     } else {
-      setAttempts(attempts + 1);
-      setSelectedItems([]);
+      toast({
+        title: "Maximum selection reached",
+        description: "You can only select 4 words at a time.",
+        variant: "destructive",
+      });
     }
   };
 
-  const getItemDisplay = (item: string) => {
-    const solvedGroup = solvedGroups.find(group => 
-      groups[group as keyof typeof groups].includes(item)
-    );
-    
-    if (solvedGroup) {
-      return (
-        <motion.div
-          className={`p-3 rounded-lg text-center font-medium text-white ${colors[solvedGroup as keyof typeof colors]}`}
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          {item}
-        </motion.div>
-      );
+  const validateSelection = () => {
+    if (selectedWords.length !== 4) return;
+
+    for (const [category, words] of Object.entries(categories)) {
+      const isMatch = selectedWords.every(word => words.includes(word)) && 
+                      words.every(word => selectedWords.includes(word));
+      
+      if (isMatch) {
+        const newGroup = { category, words: selectedWords };
+        setFoundGroups([...foundGroups, newGroup]);
+        setAvailableWords(availableWords.filter(word => !selectedWords.includes(word)));
+        setSelectedWords([]);
+        
+        toast({
+          title: `Correct! 🎯`,
+          description: `Found: "${category}"`,
+        });
+        return;
+      }
     }
+
+    // Wrong selection
+    setWrongSelection([...selectedWords]);
+    setTimeout(() => {
+      setWrongSelection([]);
+      setSelectedWords([]);
+    }, 600);
     
-    return (
-      <motion.button
-        className={`p-3 rounded-lg text-center font-medium border-2 transition-all duration-200 ${
-          selectedItems.includes(item)
-            ? 'bg-ice-blue text-white border-ice-blue'
-            : 'bg-white text-ice-dark border-gray-300 hover:border-ice-blue hover:bg-ice-blue/10'
-        }`}
-        onClick={() => handleItemClick(item)}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        {item}
-      </motion.button>
-    );
+    toast({
+      title: "Incorrect group",
+      description: "Try again!",
+      variant: "destructive",
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedWords([]);
+  };
+
+  useEffect(() => {
+    if (selectedWords.length === 4) {
+      validateSelection();
+    }
+  }, [selectedWords]);
+
+  const getWordColor = (word: string) => {
+    if (wrongSelection.includes(word)) return 'border-ice-coral bg-ice-coral/20 text-ice-coral';
+    if (selectedWords.includes(word)) return 'border-ice-purple bg-ice-purple text-white';
+    return 'border-ice-blue/30 bg-white hover:bg-ice-blue/10 text-ice-dark';
   };
 
   return (
-    <div className="h-full flex items-center justify-center p-4">
+    <div className="h-full flex flex-col items-center justify-center p-6">
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-2xl"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-4xl"
       >
-        <Card className="bg-white/90 backdrop-blur-sm shadow-2xl border-ice-blue/20">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold text-ice-purple mb-4">
-              🎯 Group Builder
-            </CardTitle>
-            <p className="text-ice-dark/70">Create four groups of four!</p>
-            <p className="text-sm text-ice-dark/50 mt-2">
-              Find groups of 4 items that share something in common
-            </p>
-          </CardHeader>
-          
-          <CardContent className="space-y-6">
-            {/* Solved groups display */}
-            {solvedGroups.map((groupName) => (
+        <motion.h2
+          className="text-3xl font-bold text-ice-purple mb-8 text-center"
+          initial={{ scale: 0.9 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          Flyer Connections
+        </motion.h2>
+
+        <div className="space-y-6">
+          {/* Found Groups */}
+          <AnimatePresence>
+            {foundGroups.map((group, index) => (
               <motion.div
-                key={groupName}
-                className={`p-4 rounded-lg ${colors[groupName as keyof typeof colors]} text-white text-center`}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
+                key={group.category}
+                initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="bg-gradient-to-r from-ice-blue/20 to-ice-purple/20 rounded-lg p-4 border-2 border-ice-blue/30"
               >
-                <div className="font-bold text-lg mb-2">{groupName}</div>
-                <div className="text-sm opacity-90">
-                  {groups[groupName as keyof typeof groups].join(', ')}
+                <h3 className="text-lg font-semibold text-ice-purple mb-3 text-center">
+                  {group.category}
+                </h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  {group.words.map((word) => (
+                    <div
+                      key={word}
+                      className="bg-ice-blue text-white p-3 rounded text-center text-sm font-medium"
+                    >
+                      {word}
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             ))}
-            
-            {/* Items grid */}
-            <div className="grid grid-cols-4 gap-3">
-              {items
-                .filter(item => !solvedGroups.some(group => 
-                  groups[group as keyof typeof groups].includes(item)
-                ))
-                .map((item) => (
-                  <div key={item}>
-                    {getItemDisplay(item)}
-                  </div>
+          </AnimatePresence>
+
+          {/* Available Words Grid */}
+          {availableWords.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-white/90 backdrop-blur-sm rounded-lg p-6 border-2 border-ice-blue/30 shadow-lg"
+            >
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {availableWords.map((word, index) => (
+                  <motion.button
+                    key={word}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => handleWordClick(word)}
+                    className={`
+                      p-4 border-2 rounded-lg font-semibold text-sm transition-all duration-300
+                      transform hover:scale-105 cursor-pointer min-h-[80px] flex items-center justify-center text-center
+                      ${getWordColor(word)}
+                      ${wrongSelection.includes(word) ? 'animate-pulse' : ''}
+                    `}
+                  >
+                    {word}
+                  </motion.button>
                 ))}
-            </div>
-            
-            {/* Controls */}
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-ice-dark/70">
-                Mistakes: {attempts}/4 | Selected: {selectedItems.length}/4
               </div>
-              
-              <div className="flex gap-2">
+
+              <div className="flex justify-center gap-4">
                 <Button
+                  onClick={clearSelection}
+                  disabled={selectedWords.length === 0}
                   variant="outline"
-                  onClick={() => setSelectedItems([])}
-                  disabled={selectedItems.length === 0}
-                  className="border-ice-blue text-ice-blue hover:bg-ice-blue hover:text-white"
+                  className="border-ice-blue text-ice-blue hover:bg-ice-blue/10"
                 >
-                  Clear
-                </Button>
-                
-                <Button
-                  onClick={handleSubmit}
-                  disabled={selectedItems.length !== 4}
-                  className="bg-ice-purple hover:bg-ice-purple/90 text-white"
-                >
-                  Submit
+                  Clear Selection ({selectedWords.length})
                 </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </motion.div>
+          )}
+        </div>
       </motion.div>
     </div>
   );

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 interface RiddleStageProps {
   onComplete: () => void;
@@ -11,101 +11,103 @@ interface RiddleStageProps {
 
 const RiddleStage = ({ onComplete }: RiddleStageProps) => {
   const [answer, setAnswer] = useState('');
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+
   const riddle = {
-    question: "I speak without a mouth and hear without ears. I have no body, but come alive with wind. What am I?",
-    answer: "echo",
-    hint: "Think about sounds that bounce back to you..."
+    text: "I am not a bird, yet I help you soar,\nFrom shopfloor tasks to strategic core.\nI don't give wings, but I shift your view,\nFrom technical depth to business too.\nYou started with tools, now you lead with insight,\nEvolution each day, taking bold flight.\nA first-line spark, with a curious mind,\nWhat program am I — for the driven, the kind?",
+    correctAnswer: "flyer"
   };
 
-  const handleSubmit = () => {
-    const userAnswer = answer.toLowerCase().trim();
-    const correctAnswer = riddle.answer.toLowerCase();
+  const handleSubmit = async () => {
+    if (!answer.trim()) {
+      toast({
+        title: "Please enter an answer",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
     
-    if (userAnswer === correctAnswer) {
-      setIsCorrect(true);
+    if (answer.toLowerCase().trim() === riddle.correctAnswer) {
+      toast({
+        title: "Correct! 🎉",
+        description: "Advancing to the next challenge...",
+      });
       setTimeout(() => {
         onComplete();
       }, 1500);
     } else {
-      setIsCorrect(false);
-      setTimeout(() => {
-        setIsCorrect(null);
-        setAnswer('');
-      }, 2000);
+      toast({
+        title: "❌ Incorrect!",
+        description: "Try again.",
+        variant: "destructive",
+      });
+      setAnswer('');
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !isSubmitting) {
+      handleSubmit();
     }
   };
 
   return (
-    <div className="h-full flex items-center justify-center">
+    <div className="h-full flex flex-col items-center justify-center p-6 max-w-4xl mx-auto">
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-2xl"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="w-full text-center"
       >
-        <Card className="bg-white/90 backdrop-blur-sm shadow-2xl border-ice-blue/20">
-          <CardHeader className="text-center pb-8">
-            <CardTitle className="text-3xl font-bold text-ice-purple mb-4">
-              🧩 Riddle Challenge
-            </CardTitle>
-            <p className="text-ice-dark/70">Solve this riddle to continue your journey!</p>
-          </CardHeader>
+        <motion.h2
+          className="text-3xl font-bold text-ice-purple mb-8"
+          initial={{ scale: 0.9 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          Solve the Riddle
+        </motion.h2>
+        
+        <motion.div
+          className="bg-white/90 backdrop-blur-sm rounded-lg p-8 mb-8 border-2 border-ice-blue/30 shadow-lg"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+        >
+          <p className="text-lg text-ice-dark leading-relaxed italic whitespace-pre-line">
+            {riddle.text}
+          </p>
+        </motion.div>
+
+        <motion.div
+          className="flex flex-col items-center gap-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+        >
+          <Input
+            type="text"
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Enter the program name..."
+            className="w-full max-w-md text-lg py-3 px-4 border-2 border-ice-blue/50 focus:border-ice-blue focus:ring-ice-blue/20"
+            disabled={isSubmitting}
+          />
           
-          <CardContent className="space-y-6">
-            <motion.div
-              className="bg-ice-blue/10 p-6 rounded-lg border-l-4 border-ice-blue"
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              <p className="text-lg text-ice-dark leading-relaxed">
-                {riddle.question}
-              </p>
-            </motion.div>
-            
-            <motion.div
-              className="space-y-4"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              <Input
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Enter your answer..."
-                className={`text-lg p-4 border-2 transition-all duration-300 ${
-                  isCorrect === true
-                    ? 'border-green-500 bg-green-50'
-                    : isCorrect === false
-                    ? 'border-ice-coral bg-red-50'
-                    : 'border-ice-blue/30 focus:border-ice-blue'
-                }`}
-                onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
-              />
-              
-              <Button
-                onClick={handleSubmit}
-                disabled={!answer.trim() || isCorrect === true}
-                className="w-full bg-ice-purple hover:bg-ice-purple/90 text-white py-3 text-lg font-semibold transition-all duration-300 transform hover:scale-105"
-              >
-                {isCorrect === true ? '✅ Correct!' : 'Submit Answer'}
-              </Button>
-            </motion.div>
-            
-            {isCorrect === false && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-ice-coral/10 border border-ice-coral/20 rounded-lg p-4 text-center"
-              >
-                <p className="text-ice-coral font-medium mb-2">Not quite right! 🤔</p>
-                <p className="text-sm text-ice-dark/70">Hint: {riddle.hint}</p>
-              </motion.div>
-            )}
-          </CardContent>
-        </Card>
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting || !answer.trim()}
+            className="bg-ice-blue hover:bg-ice-blue/90 text-white px-8 py-3 text-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none"
+            size="lg"
+          >
+            {isSubmitting ? "Checking..." : "Submit Answer"}
+          </Button>
+        </motion.div>
       </motion.div>
     </div>
   );

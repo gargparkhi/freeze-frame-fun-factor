@@ -63,7 +63,7 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Custom ice breaker game colors
+				// Custom ice breaker game colors - exact RGB values as requested
 				'ice-blue': 'rgb(56, 194, 213)',
 				'ice-purple': 'rgb(85, 64, 126)', 
 				'ice-coral': 'rgb(255, 90, 96)',
@@ -95,6 +95,9 @@ export default {
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
+			},
+			gridTemplateColumns: {
+				'15': 'repeat(15, minmax(0, 1fr))',
 			}
 		}
 	},
