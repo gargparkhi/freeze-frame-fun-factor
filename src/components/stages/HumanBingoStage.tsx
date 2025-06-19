@@ -132,7 +132,7 @@ const HumanBingoStage = ({ onComplete }: HumanBingoStageProps) => {
             className="text-ice-dark text-sm italic"
           >
             When you're done, take a screenshot and share it in the main chat!
-          </p>
+          </motion.p>
         </motion.div>
       </motion.div>
     </div>
